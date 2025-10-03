@@ -5,10 +5,12 @@
   imports = [
     # Import machine-specific hardware settings
     ./hardware-configuration.nix
-    # Import our custom NVIDIA module
     ../../modules/nixos/nvidia.nix
-  ];
+    ../../modules/nixos/sddm.nix
+    ../../modules/nixos/hyprland.nix
 
+  ];
+  home-manager.nixpkgs.pkgs = pkgs;
   # Bootloader
   boot.loader.grub = {
     enable = true;

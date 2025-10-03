@@ -1,83 +1,128 @@
 # ~/dotfiles/nix/flake.nix
+
 {
   description = "Liyan's portable NixOS and Home Manager configuration";
 
   inputs = {
-    # Nixpkgs (Stable channel for the system base)
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-
-    # Unstable channel for bleeding-edge packages
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    # Home Manager (version matching our stable channel)
-    home-manager = {
-      url = "github:nix-community/home-manager/release-25.05";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # Secrets Management
-    agenix = {
-      url = "github:ryantm/agenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    home-manager.url = "github:nix-community/home-manager/release-25.05";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    agenix.url = "github:ryantm/agenix";
+    agenix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, home-manager, agenix, ... }@inputs:
+  outputs = { self, nixpkgs, ... }@inputs:
     let
-      # Import central configuration and helper library
+      # --- Central Configuration ---
       meta = import ./meta.nix;
-      lib = import ./lib { inherit inputs; };
 
-      # Define overlays
-      overlays = [ (import ./overlays) ];
-
-      # Create a pkgs set with overlays applied
+      # --- Main Package Set Definition ---
+      # We define our system's primary package set here, once.
+      # It's based on the stable `nixpkgs` input and includes our overlays.
       pkgs = import nixpkgs {
         system = meta.system;
         config.allowUnfree = true;
-        inherit overlays;
+        overlays = [ (import ./overlays { pkgs-unstable = inputs.nixpkgs-unstable; }) ];
       };
 
-    in
-    {
-      # Code Formatter
-      formatter.${meta.system} = pkgs.alejandra;
+      # --- Helper Libraries ---
+      # This is kept for future use.
+      lib = import ./lib { inherit inputs; };
 
-      # NixOS configuration for the host specified in meta.nix
+    in {
+      # --- NixOS System Configuration ---
       nixosConfigurations."${meta.hostname}" = nixpkgs.lib.nixosSystem {
         system = meta.system;
-        specialArgs = {
-          inherit inputs meta lib;
-          # Pass unstable pkgs explicitly for overlays
-          pkgs-unstable = inputs.nixpkgs-unstable.legacyPackages.${meta.system};
-        };
+        specialArgs = { inherit inputs meta lib pkgs; };
+        
         modules = [
-          # Import the host-specific configuration
-          ./hosts/${meta.hostname}/configuration.nix
+          # THIS IS THE MOST CRITICAL LINE
+          # It forces the entire NixOS build to use our defined `pkgs` above,
+          # preventing interference from the host system's environment.
+          { nixpkgs.pkgs = pkgs; }
 
-          # Enable Home Manager
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = specialArgs;
-            home-manager.users."${meta.username}" = import ./home/${meta.username}/home.nix;
+          # Import the rest of our configuration
+          ./hosts/${meta.hostname}/configuration.nix
+          
+          # Import the Home Manager module for NixOS
+          inputs.home-manager.nixosModules.home-manager {
+            # Pass arguments to Home Manager modules
+            extraSpecialArgs = { inherit inputs meta lib pkgs; };
+            users."${meta.username}" = ./home/${meta.username}/home.nix;
           }
         ];
       };
 
-      # Standalone Home Manager configuration
-      homeConfigurations."${meta.username}" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        extraSpecialArgs = {
-          inherit inputs meta lib;
-          pkgs-unstable = inputs.nixpkgs-unstable.legacyPackages.${meta.system};
-        };
+      # --- Standalone Home Manager Configuration ---
+      homeConfigurations."${meta.username}" = inputs.home-manager.lib.homeManagerConfiguration {
+        inherit pkgs; # Use the same package set for consistency
+        extraSpecialArgs = { inherit inputs meta lib; };
         modules = [ ./home/${meta.username}/home.nix ];
       };
+
+      # --- Code Formatter ---
+      formatter.${meta.system} = pkgs.alejandra;
     };
 }
-
+# {
+#   description = "Liyan's portable NixOS and Home Manager configuration";
+#
+#   inputs = {
+#     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+#     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+#     home-manager.url = "github:nix-community/home-manager/release-25.05";
+#     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+#     agenix.url = "github:ryantm/agenix";
+#     agenix.inputs.nixpkgs.follows = "nixpkgs";
+#   };
+#
+#   outputs = { self, nixpkgs, home-manager, agenix, ... }@inputs:
+#     let
+#       meta = import ./meta.nix;
+#       lib = import ./lib { inherit inputs; };
+#
+#       # This helper function creates the final package set for a given system
+#       mkPkgs = system: import nixpkgs {
+#         inherit system;
+#         config.allowUnfree = true;
+#         overlays = [ (import ./overlays { pkgs-unstable = inputs.nixpkgs-unstable; }) ];
+#       };
+#
+#       # We create the package set for our system once
+#       pkgs = mkPkgs meta.system;
+#
+#     in {
+#       # NixOS configuration
+#       nixosConfigurations."${meta.hostname}" = nixpkgs.lib.nixosSystem {
+#         system = meta.system;
+#         # Pass our final `pkgs` set and other args to all modules
+#         specialArgs = { inherit inputs meta lib pkgs; };
+#         modules = [
+#           # This line FORCES all modules to use our `pkgs` set. This is the fix.
+#           { nixpkgs.pkgs = pkgs; }
+#
+#           # Import the rest of our configuration
+#           ./hosts/${meta.hostname}/configuration.nix
+#           home-manager.nixosModules.home-manager
+#           {
+#             home-manager.users."${meta.username}" = ./home/${meta.username}/home.nix;
+#           }
+#         ];
+#       };
+#
+#       # Standalone Home Manager configuration
+#       homeConfigurations."${meta.username}" = home-manager.lib.homeManagerConfiguration {
+#         # It also uses the same `pkgs` set for consistency
+#         inherit pkgs;
+#         extraSpecialArgs = { inherit inputs meta lib; };
+#         modules = [ ./home/${meta.username}/home.nix ];
+#       };
+#
+#       # Code Formatter
+#       formatter.${meta.system} = pkgs.alejandra;
+#     };
+# }
 # # ~/dotfiles/nix/flake.nix
 # {
 #   description = "Liyan's portable NixOS and Home Manager configuration";
