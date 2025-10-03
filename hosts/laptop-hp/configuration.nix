@@ -10,7 +10,10 @@
     ../../modules/nixos/hyprland.nix
 
   ];
-  home-manager.nixpkgs.pkgs = pkgs;
+  nixpkgs.config.allowUnfree = true;
+  nixpkgs.config.nvidia.acceptLicense = true;
+
+  # home-manager.nixpkgs.pkgs = pkgs;
   # Bootloader
   boot.loader.grub = {
     enable = true;
@@ -20,7 +23,7 @@
   };
 
   # Use the latest kernel for better hardware support
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.kernelPackages = pkgs.linuxPackages;
   
   # Networking
   networking.hostName = meta.hostname;
@@ -31,8 +34,7 @@
   i18n.defaultLocale = "en_US.UTF-8";
 
   # Audio
-  sound.enable = true;
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -50,7 +52,11 @@
   # System Services
   services.flatpak.enable = true;
   programs.adb.enable = true;
-
+  xdg.portal = {
+    enable = true;
+    config.common.default = "*";
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  };
   # Bluetooth
   hardware.bluetooth.enable = true;
   services.blueman.enable = true;

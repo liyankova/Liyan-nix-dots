@@ -5,10 +5,11 @@
   # This module configures NVIDIA drivers for a hybrid graphics laptop (Intel + NVIDIA).
   # It is specifically tailored for older GPUs requiring legacy drivers.
 
-  hardware.opengl = {
+  hardware.graphics = {
     enable = true;
-    driSupport = true;
-    driSupport32Bit = true;
+    # driSupport = true;
+    # driSupport32Bit = true;
+    enable32Bit = true;
   };
 
   services.xserver.videoDrivers = [ "nvidia" ];
