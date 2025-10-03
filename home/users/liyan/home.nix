@@ -7,7 +7,7 @@
 
   # Basic user information
   home.username = meta.username;
-  home.homeDirectory = "/home/${meta.username}";
+  home.homeDirectory = "/home/users/${meta.username}";
 
   # Let Home Manager manage itself
   programs.home-manager.enable = true;

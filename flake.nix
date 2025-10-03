@@ -35,7 +35,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.extraSpecialArgs = { inherit inputs meta; };
-            home-manager.users."${meta.username}" = import ./home/${meta.username}/home.nix;
+            home-manager.users."${meta.username}" = import ./home/users/${meta.username}/home.nix;
           }
         ];
       };
@@ -44,7 +44,7 @@
       homeConfigurations."${meta.username}" = home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgs.legacyPackages.${meta.system};
         extraSpecialArgs = { inherit inputs meta; };
-        modules = [ ./home/${meta.username}/home.nix ];
+        modules = [ ./home/users/${meta.username}/home.nix ];
       };
     };
 }

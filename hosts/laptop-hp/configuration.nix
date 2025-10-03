@@ -5,9 +5,9 @@
   imports = [
     # Import machine-specific hardware settings
     ./hardware-configuration.nix
-    ../../modules/nixos/nvidia.nix
-    ../../modules/nixos/sddm.nix
-    ../../modules/nixos/hyprland.nix
+    ../../nixos/modules/hardware/nvidia.nix
+    ../../nixos/modules/desktop/sddm.nix
+    ../../nixos/modules/desktop/hyprland.nix
 
   ];
   nixpkgs.config.allowUnfree = true;
